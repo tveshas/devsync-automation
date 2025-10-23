@@ -1,0 +1,62 @@
+name: Daily Repository Update - DevSync
+
+on:
+  schedule:
+    # Runs every day at 10:30 AM UTC (must use specific hours/minutes)
+    - cron: '30 10 * * *'
+  workflow_dispatch: # Allows manual triggering for testing
+
+jobs:
+  automated-commit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Git configuration for 23f3001654@ds.study.iitm.ac.in
+        run: |
+          git config user.name "DevSync Automation Bot"
+          git config user.email "23f3001654@ds.study.iitm.ac.in"
+      
+      - name: Generate daily activity log
+        run: |
+          # Create logs directory if it doesn't exist
+          mkdir -p logs
+          
+          # Create timestamped log entry
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          LOG_FILE="logs/activity-$(date -u '+%Y-%m').log"
+          
+          echo "==================================" >> "$LOG_FILE"
+          echo "Automated Update: $TIMESTAMP" >> "$LOG_FILE"
+          echo "Workflow: ${{ github.workflow }}" >> "$LOG_FILE"
+          echo "Run Number: ${{ github.run_number }}" >> "$LOG_FILE"
+          echo "Repository: ${{ github.repository }}" >> "$LOG_FILE"
+          echo "==================================" >> "$LOG_FILE"
+          echo "" >> "$LOG_FILE"
+          
+          # Update status file
+          echo "Last updated: $TIMESTAMP" > .devsync-status
+      
+      - name: Commit changes to repository
+        run: |
+          git add -A
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes detected, creating empty commit"
+            git commit --allow-empty -m "chore: automated daily update [$(date -u '+%Y-%m-%d %H:%M UTC')]"
+          else
+            git commit -m "chore: automated daily activity log [$(date -u '+%Y-%m-%d')]"
+          fi
+      
+      - name: Push changes
+        run: |
+          git push origin main
+
